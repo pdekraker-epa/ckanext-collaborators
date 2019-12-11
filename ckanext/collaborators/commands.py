@@ -5,7 +5,7 @@ import logging
 
 from ckan.plugins.toolkit import CkanCommand
 
-from ckanext.collaborators.model import tables_exist, create_tables
+from ckanext.collaborators.model import tables_exist, create_tables, drop_tables
 
 
 class DatasetCollaborators(CkanCommand):
@@ -35,9 +35,14 @@ class DatasetCollaborators(CkanCommand):
         cmd = self.args[0]
         if cmd == 'init-db':
             self.init_db()
+        if cmd == 'remove-db':
+            self.remove_db()
+        if cmd == 'reset-db':
+            self.reset_db()
         else:
             self.parser.print_usage()
             sys.exit(1)
+
 
     def init_db(self):
 
@@ -48,3 +53,25 @@ class DatasetCollaborators(CkanCommand):
         create_tables()
 
         print(u'Dataset collaborators tables created')
+
+    def remove_db(self):
+
+        if not tables_exist():
+            print(u'Dataset collaborators tables do not exist')
+            sys.exit(0)
+
+        drop_tables()
+        
+        print(u'Dataset collaborators tables removed')
+
+    def reset_db(self):
+
+        if not tables_exist():
+            print(u'Dataset collaborators tables do not exist')
+            sys.exit(0)
+        else:
+            drop_tables()
+        
+        create_tables()
+
+        print(u'Dataset collaborators tables reset')

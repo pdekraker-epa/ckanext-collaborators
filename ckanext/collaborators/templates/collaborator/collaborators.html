@@ -4,15 +4,20 @@
 
 {% block page_primary_action %}
   {% if h.check_access('dataset_collaborator_create', {'id': pkg_dict.id})%}
-    {% link_for _('Add Collaborators'), named_route='collaborators.new', dataset_id=pkg_dict.name, class_='btn btn-primary', icon='plus-square' %}
+    {% link_for _('Add Collaborator'), named_route='collaborators.new', dataset_id=pkg_dict.name, class_='btn btn-primary', icon='plus-square' %}
   {% endif %}
 {% endblock %}
 
 {% block primary_content_inner %}
-  {% set collaborators = h.collaborators_get_collaborators(pkg_dict)%}
-  {% set count = collaborators|length %}
-  {% set collaborators_count = ungettext('{count} collaborator', '{count} collaborators', count).format(count=count) %}
-  <h3 class="page-heading">{{ collaborators_count }}</h3>
+  {% set user_collaborators = h.collaborators_get_collaborators(pkg_dict, 'user')%}
+  {% set user_count = user_collaborators|length %}
+  {% set user_collaborators_count = ungettext('{count} User Collaborator', '{count} User Collaborators', count).format(count=user_count) %}
+  {% set org_collaborators = h.collaborators_get_collaborators(pkg_dict, 'org')%}
+  {% set org_count = org_collaborators|length %}
+  {% set org_collaborators_count = ungettext('{count} Collaborator Organization', '{count} Collaborator Organizations', count).format(count=org_count) %}
+  <h3 class="page-heading">{{ user_collaborators_count }} and {{ org_collaborators_count }}</h3>
+  
+  {% if user_collaborators %}
   <table class="table table-header table-hover table-bordered">
     <thead>
       <tr>
@@ -22,22 +27,42 @@
       </tr>
     </thead>
     <tbody>
-      {% for user_id, capacity in collaborators %}
+      {% for member_id, capacity in user_collaborators %}
         <tr>
-          <td class="media">
-            {{ h.linked_user(user_id, maxlength=20) }}
-          </td>
+          <td class="media">{{ h.linked_user(member_id, maxlength=20) }}</td>
           <td>{{ capacity }}</td>
-          <td>
-            <div class="btn-group pull-right">
-                <a class="btn btn-default btn-sm" href="{{ h.url_for('collaborators.new', dataset_id=pkg_dict.name, user_id=user_id) }}" title="{{ _('Edit') }}">
-                <i class="fa fa-wrench"></i>
-              </a>
-              <a class="btn btn-danger btn-sm" href="{{ h.url_for('collaborators.delete', dataset_id=pkg_dict.name, user_id=user_id) }}" data-module="confirm-action" data-module-content="{{ _('Are you sure you want to delete this member?') }}" title="{{ _('Delete') }}">{% block delete_button_text %}<i class="fa fa-times"></i>{% endblock %}</a>
-            </div>
-          </td>
+          <td><div class="btn-group pull-right">
+              <a class="btn btn-default btn-sm" href="{{ h.url_for('collaborators.new', dataset_id=pkg_dict.name, type='user', member_id=member_id) }}" title="{{ _('Edit') }}"><i class="fa fa-wrench"></i></a>
+              <a class="btn btn-danger btn-sm" href="{{ h.url_for('collaborators.delete', dataset_id=pkg_dict.name, type='user', member_id=member_id) }}" data-module="confirm-action" data-module-content="{{ _('Are you sure you want to delete this member?') }}" title="{{ _('Delete') }}"><i class="fa fa-times"></i>
+          </div></td>
+        </tr>
+      {% endfor %}
+	     </tbody>
+  </table>
+	{% endif %} 
+
+	{% if org_collaborators %}
+	  <table class="table table-header table-hover table-bordered">
+    <thead>
+      <tr>
+          <th>{{ _('Organization') }}</th>
+          <th>{{ _('Capacity') }}</th>
+          <th></th>
+      </tr>
+    </thead>
+    <tbody>
+	    {% for member_id, capacity in org_collaborators %}
+        <tr>
+          <td class="media">{{ h.organization_link(h.get_organization(member_id)) }}</td>
+          <td>{{ capacity }}</td>
+          <td><div class="btn-group pull-right">
+              <a class="btn btn-default btn-sm" href="{{ h.url_for('collaborators.new', dataset_id=pkg_dict.name, type='org', member_id=member_id) }}" title="{{ _('Edit') }}"><i class="fa fa-wrench"></i></a>
+              <a class="btn btn-danger btn-sm" href="{{ h.url_for('collaborators.delete', dataset_id=pkg_dict.name, type='org', member_id=member_id) }}" data-module="confirm-action" data-module-content="{{ _('Are you sure you want to delete this member?') }}" title="{{ _('Delete') }}"><i class="fa fa-times"></i></a>
+          </div></td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+  {% endif %}
+  
 {% endblock %}

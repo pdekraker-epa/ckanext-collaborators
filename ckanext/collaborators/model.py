@@ -24,7 +24,8 @@ class DatasetMember(Base):
     __tablename__ = u'dataset_member'
 
     id = Column(Unicode, primary_key=True, default=make_uuid)
-    user_id = Column(Unicode, nullable=False)
+    type = Column(Unicode, nullable=False)          #user vs org
+    member_id = Column(Unicode, nullable=False)     #user_id or org_id
     dataset_id = Column(Unicode, nullable=False)
     capacity = Column(Unicode, nullable=False)
     modified = Column(DateTime, default=datetime.datetime.utcnow)
@@ -41,11 +42,18 @@ class DatasetMember(Base):
             _dict[col.name] = val
         return _dict
 
+
 def create_tables():
     DatasetMember.__table__.create()
 
     log.info(u'Dataset collaborators database tables created')
 
+def drop_tables():
+    DatasetMember.__table__.drop()
+
+    log.info(u'Dataset collaborators database tables dropped')
+
 
 def tables_exist():
-    return DatasetMember.__table__.exists()
+    
+    return DatasetMember.__table__.exists() 

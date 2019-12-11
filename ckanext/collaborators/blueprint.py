@@ -25,13 +25,17 @@ def collaborators_read(dataset_id):
 
     return toolkit.render('collaborator/collaborators.html')
 
-def collaborator_delete(dataset_id, user_id):
+def collaborator_delete(dataset_id):
     context = {u'model': model, u'user': toolkit.c.user}
 
     try:
+        member_type = toolkit.request.params.get(u'type')
+        member_id = toolkit.request.params.get(u'member_id')
+    
         toolkit.get_action('dataset_collaborator_delete')(context, {
             'id': dataset_id,
-            'user_id': user_id
+            'type': member_type,
+            'member_id': member_id
         })
     except toolkit.NotAuthorized:
         message = u'Unauthorized to delete collaborators {0}'.format(dataset_id)
@@ -39,7 +43,10 @@ def collaborator_delete(dataset_id, user_id):
     except toolkit.ObjectNotFound as e:
         return toolkit.abort(404, toolkit._(e.message))
 
-    toolkit.h.flash_success(toolkit._('User removed from collaborators'))
+    if member_type == 'user':
+        toolkit.h.flash_success(toolkit._('User removed from collaborators'))
+    if member_type == 'org':
+        toolkit.h.flash_success(toolkit._('Organization removed from collaborators'))
 
     return toolkit.redirect_to(u'collaborators.read', dataset_id=dataset_id)
 
@@ -53,18 +60,31 @@ class CollaboratorEditView(MethodView):
                     logic.tuplize_dict(
                         logic.parse_params(toolkit.request.form))))
 
-            user = toolkit.get_action('user_show')(context, {
-                'id':form_dict['username']
-                })
+            if form_dict['username']:
+                user = toolkit.get_action('user_show')(context, {'id':form_dict['username'] })
 
-            data_dict = {
-                'id': dataset_id,
-                'user_id': user['id'],
-                'capacity': form_dict['capacity']
-            }
+                data_dict = {
+                    'id': dataset_id,
+                    'type': 'user',
+                    'member_id': user['id'],
+                    'capacity': form_dict['capacity']
+                }
+                
+                toolkit.get_action('dataset_collaborator_create')(context, data_dict)
+                toolkit.h.flash_success(toolkit._('User added to collaborators'))
 
-            toolkit.get_action('dataset_collaborator_create')(
-                context, data_dict)
+            elif form_dict['organization']:
+                org = toolkit.get_action('organization_show')(context, {'id':form_dict['organization'] })
+
+                data_dict = {
+                    'id': dataset_id,
+                    'type': 'org',
+                    'member_id': org['id'],
+                    'capacity': form_dict['capacity']
+                }
+            
+                toolkit.get_action('dataset_collaborator_create')(context, data_dict)
+                toolkit.h.flash_success(toolkit._('Organization added to collaborators'))
 
         except dictization_functions.DataError:
             return toolkit.abort(400, _(u'Integrity Error'))
@@ -75,9 +95,7 @@ class CollaboratorEditView(MethodView):
             return toolkit.abort(404, toolkit._(u'Resource not found'))
         except toolkit.ValidationError as e:
             toolkit.h.flash_error(e.error_summary)
-        else:
-            toolkit.h.flash_success(toolkit._('User added to collaborators'))
-
+        
         return toolkit.redirect_to(u'collaborators.read', dataset_id=dataset_id)
 
     def get(self, dataset_id):
@@ -94,26 +112,32 @@ class CollaboratorEditView(MethodView):
         except toolkit.ObjectNotFound as e:
             return toolkit.abort(404, toolkit._(u'Resource not found'))
 
-        user = toolkit.request.params.get(u'user_id')
-        user_capacity = 'member'
-
-        if user:
-            collaborators = toolkit.get_action('dataset_collaborator_list')(
-                context, data_dict)
-            for c in collaborators:
-                if c['user_id'] == user:
-                    user_capacity = c['capacity']
-            user = toolkit.get_action('user_show')(context, {'id': user})
-            # Needed to reuse template
-            g.user_dict = user
+        member_type = toolkit.request.params.get(u'type')
+        member_id = toolkit.request.params.get(u'member_id')
+        capacity = 'member'
 
         extra_vars = {
+            'type': member_type,
             'capacities': [
                 {'name':'editor', 'value': 'editor'},
                 {'name':'member', 'value':'member'}
                 ],
-            'user_capacity': user_capacity,
-        }
+            'capacity': capacity}
+
+        if member_type and member_id:
+            data_dict['member_type'] = member_type        
+            collaborators = toolkit.get_action('dataset_collaborator_list')(context, data_dict)
+            for c in collaborators:
+                if c['member_id'] == member_id :
+                    capacity = c['capacity']
+            
+            if member_type == 'user':
+                g.user_dict = toolkit.get_action('user_show')(context, {'id': member_id})
+            else:
+                g.org_dict = toolkit.get_action('organization_show')(context, {'id': member_id})
+                
+        if not member_type or member_type == 'org':
+            extra_vars['capacities'].append({'name':'inherit', 'value':'inherit'})  
 
         return toolkit.render('collaborator/collaborator_new.html', extra_vars)
 
@@ -133,7 +157,8 @@ collaborators.add_url_rule(
     )
 
 collaborators.add_url_rule(
-    rule=u'/dataset/collaborators/<dataset_id>/delete/<user_id>',
+    rule=u'/dataset/collaborators/<dataset_id>/delete',
     endpoint='delete',
     view_func=collaborator_delete, methods=['POST',]
     )
+    
