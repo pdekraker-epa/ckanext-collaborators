@@ -3,9 +3,10 @@ import logging
 import ckan.plugins as p
 from ckan.lib.plugins import DefaultPermissionLabels
 import ckan.plugins.toolkit as toolkit
+import ckan.authz as authz
 
 from ckanext.collaborators import blueprint
-from ckanext.collaborators.helpers import get_collaborators
+from ckanext.collaborators.helpers import (get_collaborators, get_resource_visibility_options)
 from ckanext.collaborators.model import tables_exist
 from ckanext.collaborators.logic import action, auth
 
@@ -17,6 +18,7 @@ class CollaboratorsPlugin(p.SingletonPlugin, DefaultPermissionLabels):
     p.implements(p.IActions)
     p.implements(p.IAuthFunctions)
     p.implements(p.IPermissionLabels)
+    p.implements(p.IPackageController, inherit=True)
     p.implements(p.IBlueprint)
     p.implements(p.ITemplateHelpers)
 
@@ -29,8 +31,6 @@ The dataset collaborators extension requires a database setup. Please run the
 following to create the database tables:
     paster --plugin=ckanext-collaborators collaborators init-db
 ''')
-        else:
-            log.debug(u'Dataset collaborators tables exist')
 
         toolkit.add_template_directory(config_, 'templates')
         toolkit.add_public_directory(config_, 'public')
@@ -55,7 +55,20 @@ following to create the database tables:
             'dataset_collaborator_list': auth.dataset_collaborator_list,
             'dataset_collaborator_list_for_user': auth.dataset_collaborator_list_for_user,
             'package_update': auth.package_update,
+            'resource_show': auth.resource_show,
         }
+
+    # IPackageController
+
+    def after_show(self, context, data_dict):
+        resources = []
+        for resource_dict in data_dict['resources']:
+            auth = authz.is_authorized('resource_show', context, resource_dict)
+            
+            if auth['success']:
+                resources.append(resource_dict)
+        data_dict['resources'] = resources
+        return data_dict
 
     # IPermissionLabels
 
@@ -86,7 +99,8 @@ following to create the database tables:
 
     # ITemplateHelpers
     def get_helpers(self):
-        return {'collaborators_get_collaborators': get_collaborators}
+        return {'collaborators_get_collaborators': get_collaborators,
+        'collaborators_get_resource_visibility_options': get_resource_visibility_options}
 
     # IBlueprint
     def get_blueprint(self):

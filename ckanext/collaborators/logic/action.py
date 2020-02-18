@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 
 ALLOWED_MEMBER_TYPES = ('user', 'org')
-ALLOWED_USER_CAPACITIES = ('editor', 'member')
-ALLOWED_ORG_CAPACITIES = ('editor', 'member', 'inherit')
+ALLOWED_USER_CAPACITIES = ('editor', 'member', 'limited_member')
+ALLOWED_ORG_CAPACITIES = ('editor', 'member', 'limited_member', 'inherit')
 
 def dataset_collaborator_create(context, data_dict):
     '''Make a user a collaborator in a dataset.

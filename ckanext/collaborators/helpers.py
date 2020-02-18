@@ -21,3 +21,9 @@ def get_collaborators(package_dict, type=None):
 
     return collaborators
 
+
+def get_resource_visibility_options():
+    return [{'value': 'editor', 'text':'Editor'},
+            {'value': 'owner_member', 'text':'Owner Member'},
+            {'value': 'member', 'text':'Collaborator Member'},
+            {'value': 'package', 'text': 'Match Dataset'}]

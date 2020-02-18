@@ -1,8 +1,14 @@
 from ckan.plugins import toolkit
 
-from ckan.logic.auth import get_package_object
+import logging
+
+import ckan.model as model
+
+from ckan.logic.auth import (get_package_object, get_resource_object)
 from ckan.authz import has_user_permission_for_group_or_org
-from ckan.logic.auth.update import package_update as core_package_update
+# from ckan.logic.auth.update import package_update as core_package_update
+# from ckan.logic.auth.get import resource_show as core_resource_show
+# from ckan.logic.auth.get import package_show as core_package_show
 
 
 def _auth_collaborator(context, data_dict, message):
@@ -16,7 +22,7 @@ def _auth_collaborator(context, data_dict, message):
         return {'success': False}
 
     if not has_user_permission_for_group_or_org(
-            owner_org, user, 'membership'):
+            owner_org, user, 'update_dataset'):
         return {
             'success': False,
             'msg': toolkit._(message) % user}
@@ -66,20 +72,68 @@ def dataset_collaborator_list_for_user(context, data_dict):
 
 
 # Core overrides
-# TODO: remove the direct core import and use the chained_auth_function
-# decorator once #4248 et al are backported into 2.8
-def package_update(context, data_dict):
-
-    result = core_package_update(context, data_dict)
-
-    if result['success']:
-        return result
+@toolkit.chained_auth_function
+def package_update(next_auth, context, data_dict):
 
     user_name = context['user']
     dataset = get_package_object(context, data_dict)
 
-    datasets = toolkit.get_action(
-        'dataset_collaborator_list_for_user')(
-            context, {'id': user_name, 'capacity': 'editor'})
-    return {
-        'success': dataset.id in [d['dataset_id'] for d in datasets]}
+    datasets = toolkit.get_action('dataset_collaborator_list_for_user')(
+        context, {'id': user_name, 'capacity': 'editor'})
+    
+    if  dataset.id in [d['dataset_id'] for d in datasets]:
+        return {'success': True}
+        
+    return next_auth(context, data_dict)
+        
+
+@toolkit.chained_auth_function
+def resource_show(next_auth, context, data_dict):
+
+    r = context.pop('resource',False)
+
+    resource_obj = get_resource_object(context, data_dict)
+    visibility = resource_obj.extras.get('visibility','package')
+    
+    if visibility.startswith('package'):
+        return next_auth(context, data_dict)
+    
+    if visibility.startswith('editor'):
+        required_permission = 'dataset_update'
+        require_owner = False
+    elif visibility.startswith('owner'):
+        required_permission = 'read'
+        require_owner = True
+    else:
+        # collaborator member
+        required_permission = 'read'
+        require_owner = False
+
+    package_obj = get_package_object(context, {'id': resource_obj.package_id})
+    user_name = context['user']
+
+    if has_user_permission_for_group_or_org(package_obj.owner_org, user_name, required_permission):
+        return {'success': True}
+
+    if require_owner:
+        return {'success': False}
+
+    collaborator_packages = toolkit.get_action('dataset_collaborator_list_for_user')(
+        context, {'id': user_name, 'permission': required_permission})
+
+    if package_obj.id in [p['dataset_id'] for p in collaborator_packages]:
+        return {'success': True}
+    
+    return {'success': False}
+
+# @toolkit.auth_allow_anonymous_access
+# def resource_view_show(context, data_dict):
+    # resource_obj = get_resource_object(context, data_dict)
+    # return core_resource_show(context, {'id': resource_obj.id})
+
+# @toolkit.auth_allow_anonymous_access
+# def resource_view_list(context, data_dict):
+    # resourceObj = model.Resource.get(data_dict['id'])
+    # return core_package_show(context, {'id': resourceObj.package_id})
+
+ 
