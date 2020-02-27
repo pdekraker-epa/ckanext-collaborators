@@ -4,12 +4,14 @@ import logging
 
 import ckan.model as model
 
+import ckan.logic as logic
 from ckan.logic.auth import (get_package_object, get_resource_object)
 from ckan.authz import has_user_permission_for_group_or_org
 # from ckan.logic.auth.update import package_update as core_package_update
-# from ckan.logic.auth.get import resource_show as core_resource_show
+from ckan.logic.auth.get import resource_show as core_resource_show
 # from ckan.logic.auth.get import package_show as core_package_show
 
+log = logging.getLogger()
 
 def _auth_collaborator(context, data_dict, message):
     user = context['user']
@@ -87,16 +89,18 @@ def package_update(next_auth, context, data_dict):
     return next_auth(context, data_dict)
         
 
-@toolkit.chained_auth_function
-def resource_show(next_auth, context, data_dict):
+#@toolkit.chained_auth_function
+@toolkit.auth_allow_anonymous_access
+def resource_show( context, data_dict):
 
+    base_auth = core_resource_show(context, data_dict)
+    if not base_auth['success']:
+        return base_auth
+    
     r = context.pop('resource',False)
 
     resource_obj = get_resource_object(context, data_dict)
     visibility = resource_obj.extras.get('visibility','package')
-    
-    if visibility.startswith('package'):
-        return next_auth(context, data_dict)
     
     if visibility.startswith('editor'):
         required_permission = 'dataset_update'
@@ -104,10 +108,12 @@ def resource_show(next_auth, context, data_dict):
     elif visibility.startswith('owner'):
         required_permission = 'read'
         require_owner = True
-    else:
+    elif visibility.startswith('collaborator'):
         # collaborator member
         required_permission = 'read'
         require_owner = False
+    else:
+        return {'success': True}
 
     package_obj = get_package_object(context, {'id': resource_obj.package_id})
     user_name = context['user']
@@ -128,6 +134,7 @@ def resource_show(next_auth, context, data_dict):
 
 # @toolkit.auth_allow_anonymous_access
 # def resource_view_show(context, data_dict):
+    # r = context.pop('resource',False)
     # resource_obj = get_resource_object(context, data_dict)
     # return core_resource_show(context, {'id': resource_obj.id})
 

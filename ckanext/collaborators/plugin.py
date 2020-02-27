@@ -4,6 +4,7 @@ import ckan.plugins as p
 from ckan.lib.plugins import DefaultPermissionLabels
 import ckan.plugins.toolkit as toolkit
 import ckan.authz as authz
+from ckan.logic import check_access
 
 from ckanext.collaborators import blueprint
 from ckanext.collaborators.helpers import (get_collaborators, get_resource_visibility_options)
@@ -64,7 +65,6 @@ following to create the database tables:
         resources = []
         for resource_dict in data_dict['resources']:
             auth = authz.is_authorized('resource_show', context, resource_dict)
-            
             if auth['success']:
                 resources.append(resource_dict)
         data_dict['resources'] = resources
