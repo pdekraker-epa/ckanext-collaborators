@@ -23,7 +23,8 @@ def get_collaborators(package_dict, type=None):
 
 
 def get_resource_visibility_options():
-    return [{'value': 'editor', 'text':'Editor'},
+    return [{'value': 'package', 'text': 'Match Dataset'},
+            {'value': 'editor', 'text':'Editor'},
             {'value': 'owner_member', 'text':'Owner Member'},
-            {'value': 'collaborator_member', 'text':'Collaborator Member'},
-            {'value': 'package', 'text': 'Match Dataset'}]
+            {'value': 'collaborator_member', 'text':'Collaborator Member'}]
+            
