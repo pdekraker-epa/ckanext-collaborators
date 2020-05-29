@@ -3,8 +3,6 @@ import logging
 import ckan.plugins as p
 from ckan.lib.plugins import DefaultPermissionLabels
 import ckan.plugins.toolkit as toolkit
-import ckan.authz as authz
-from ckan.logic import check_access
 
 from ckanext.collaborators import blueprint
 from ckanext.collaborators.helpers import (get_collaborators, get_resource_visibility_options)
@@ -19,7 +17,6 @@ class CollaboratorsPlugin(p.SingletonPlugin, DefaultPermissionLabels):
     p.implements(p.IActions)
     p.implements(p.IAuthFunctions)
     p.implements(p.IPermissionLabels)
-    p.implements(p.IPackageController, inherit=True)
     p.implements(p.IBlueprint)
     p.implements(p.ITemplateHelpers)
 
@@ -56,19 +53,7 @@ following to create the database tables:
             'dataset_collaborator_list': auth.dataset_collaborator_list,
             'dataset_collaborator_list_for_user': auth.dataset_collaborator_list_for_user,
             'package_update': auth.package_update,
-            'resource_show': auth.resource_show,
         }
-
-    # IPackageController
-
-    def after_show(self, context, data_dict):
-        resources = []
-        for resource_dict in data_dict['resources']:
-            auth = authz.is_authorized('resource_show', context, resource_dict)
-            if auth['success']:
-                resources.append(resource_dict)
-        data_dict['resources'] = resources
-        return data_dict
 
     # IPermissionLabels
 

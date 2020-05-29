@@ -77,15 +77,15 @@ def dataset_collaborator_list_for_user(context, data_dict):
 @toolkit.chained_auth_function
 def package_update(next_auth, context, data_dict):
 
-    user_name = context['user']
+    user = context['auth_user_obj']
     dataset = get_package_object(context, data_dict)
 
     datasets = toolkit.get_action('dataset_collaborator_list_for_user')(
-        context, {'id': user_name, 'capacity': 'editor'})
-    
+        {'ignore_auth': True}, {'id': user.id, 'capacity': 'editor'})
+
     if  dataset.id in [d['dataset_id'] for d in datasets]:
         return {'success': True}
-        
+
     return next_auth(context, data_dict)
         
 

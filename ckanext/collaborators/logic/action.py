@@ -277,24 +277,21 @@ def dataset_collaborator_list_for_user(context, data_dict):
 
 
     if not member_type or member_type == 'org':
-    
-        user_orgs = toolkit.get_action('organization_list_for_user')(context, {'id': user_id} )
-    
+
+        user_orgs = toolkit.get_action('organization_list_for_user')(context, data_dict={'id': user.id} )
+
         user_org_ids = [ org['id'] for org in user_orgs]
 
-    
         q = model.Session.query(DatasetMember).\
             filter(DatasetMember.type == 'org').\
             filter(DatasetMember.member_id.in_( user_org_ids))
-            # .\
-            # filter(DatasetMember.capacity.in_( roles))
-    
+
         members = q.all()
 
         for member in members:
-            
+
             if  member.capacity == 'inherit':
-                org = next( user_org for user_org in user_orgs if user_org['id'] == member.member_id )                    
+                org = next( user_org for user_org in user_orgs if user_org['id'] == member.member_id )
                 capacity = 'editor' if org.capacity == 'admin' else org.capacity
                 if capacity in roles:
                     out.append({
@@ -303,7 +300,7 @@ def dataset_collaborator_list_for_user(context, data_dict):
                         'capacity': capacity,
                         'modified': member.modified.isoformat(),
                     })
-            
+
             elif member.capacity in roles:
                 out.append({
                     'dataset_id': member.dataset_id,
@@ -311,8 +308,7 @@ def dataset_collaborator_list_for_user(context, data_dict):
                     'capacity': member.capacity,
                     'modified': member.modified.isoformat(),
                 })
-        
-    
+
     return out
 
 def dataset_collaborator_list_for_organization(context, data_dict):

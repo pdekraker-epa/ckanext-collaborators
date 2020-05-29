@@ -114,30 +114,39 @@ class CollaboratorEditView(MethodView):
 
         member_type = toolkit.request.params.get(u'type')
         member_id = toolkit.request.params.get(u'member_id')
-        capacity = 'member'
 
-        extra_vars = {
-            'type': member_type,
-            'capacities': [
-                {'name':'editor', 'value': 'editor'},
-                {'name':'member', 'value':'member'}
-                ],
-            'capacity': capacity}
+        collaborators = toolkit.get_action('dataset_collaborator_list')(context, data_dict)
 
-        if member_type and member_id:
-            data_dict['member_type'] = member_type        
-            collaborators = toolkit.get_action('dataset_collaborator_list')(context, data_dict)
-            for c in collaborators:
-                if c['member_id'] == member_id :
-                    capacity = c['capacity']
-            
-            if member_type == 'user':
-                g.user_dict = toolkit.get_action('user_show')(context, {'id': member_id})
-            else:
-                g.org_dict = toolkit.get_action('organization_show')(context, {'id': member_id})
-                
-        if not member_type or member_type == 'org':
-            extra_vars['capacities'].append({'name':'inherit', 'value':'inherit'})  
+        for c in collaborators:
+            if c['member_id'] == member_id:
+                capacity = c['capacity']
+
+        if member_type == 'user':
+            user_dict = toolkit.get_action('user_show')(context, {'id': member_id})
+            extra_vars = {
+                'type': 'user',
+                'member_name': user_dict.get('name'),
+                'capacities': [ {'name': 'editor', 'value': 'editor'},
+                                {'name': 'member', 'value': 'member'} ],
+                'capacity': capacity}
+
+        elif member_type == 'org':
+            org_dict = toolkit.get_action('organization_show')(context, {'id': member_id})
+            extra_vars = {
+                'type': 'org',
+                'member_name': org_dict.get('name'),
+                'capacities': [ {'name': 'editor', 'value': 'editor'},
+                                {'name': 'member', 'value': 'member'},
+                                ],
+                'capacity': capacity}
+
+        else:
+            extra_vars = {
+                'capacities': [{'name': 'editor', 'value': 'editor'},
+                               {'name': 'member', 'value': 'member'},
+                               {'name': 'inherit', 'value': 'inherit'}],
+                'capacity': 'member'}
+
 
         return toolkit.render('collaborator/collaborator_new.html', extra_vars)
 
